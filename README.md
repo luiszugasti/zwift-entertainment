@@ -49,4 +49,9 @@ Ramps switch zones at the point they cross a boundary. `.erg` files in watts wit
 The app can't see Zwift, so it follows the workout file's clock. If it drifts, use ±5s (←/→), the block
 skip buttons, or click the chart to jump. Space pauses.
 
+Press F (or the Full screen button) to make the video area full screen. It keeps the countdown, the zone status
+and the content bar, which fade out after 3 seconds without input. Hover the round button in the
+bottom-right corner to bring them back (mouse movement over the video itself doesn't reach the app). YouTube's own full-screen button is turned
+off, because it would only cover one player.
+
 Sample workouts are in `samples/`; `quick-test.zwo` is 2 minutes of short blocks for checking switching.

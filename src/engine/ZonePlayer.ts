@@ -134,7 +134,8 @@ export class ZonePlayer {
     const it = this.items[this.pos.item];
     const target = document.createElement('div');
     this.el.appendChild(target);
-    const playerVars: YT.PlayerVars = { autoplay: 0, playsinline: 1, rel: 0 };
+    // fs: 0 hides YouTube's full-screen button; the app's own covers the countdown and bar too.
+    const playerVars: YT.PlayerVars = { autoplay: 0, playsinline: 1, rel: 0, fs: 0 };
     if (it.kind === 'channel') Object.assign(playerVars, { listType: 'playlist', list: this.channelListId(it) });
     this.player = new YT.Player(target, {
       width: '100%',

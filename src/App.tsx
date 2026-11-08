@@ -371,6 +371,22 @@ function RidePanel({
 }: RideProps) {
   const [dragging, setDragging] = useState(false);
   const active = isActive(session);
+  const theaterRef = useRef<HTMLDivElement>(null);
+  const [fullscreen, toggleFullscreen] = useFullscreen(theaterRef);
+  const dockRef = useRef<HTMLDivElement>(null);
+  const [idle, wake] = useIdle(theaterRef, fullscreen, dockRef);
+
+  // F toggles full screen during a ride.
+  useEffect(() => {
+    if (!session) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'KeyF' || e.metaKey || e.ctrlKey || e.altKey) return;
+      if ((e.target as HTMLElement).closest('input, select, textarea')) return;
+      toggleFullscreen();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [session, toggleFullscreen]);
 
   const dropProps = {
     onDragOver: (e: DragEvent) => {
@@ -454,6 +470,7 @@ function RidePanel({
         </div>
       </div>
 
+      <div ref={theaterRef} className={`theater${fullscreen ? ' fs' : ''}${idle ? ' idle' : ''}`}>
       <div className="stage-wrap">
         <div className="stage" ref={stageRef} />
         {!session && (
@@ -526,8 +543,40 @@ function RidePanel({
             {session?.status === 'extra' ? 'Workout complete · ' : ''}Playing {zoneMeta(owner).label} content
           </div>
         )}
+        {fullscreen && session && !done && (
+          <div className="fs-hud" style={{ '--zone': zone.color } as CSSProperties}>
+            <span className="zone-pill big">{zone.short}</span>
+            {inWorkout ? (
+              <>
+                <div>
+                  <span className="muted">Block left</span>
+                  <strong>{formatTime(block.end - t)}</strong>
+                </div>
+                <div>
+                  <span className="muted">Next</span>
+                  <strong>{next ? `${zoneMeta(next.zone).short} in ${formatTime(next.start - t)}` : 'Finish'}</strong>
+                </div>
+              </>
+            ) : (
+              <strong>Workout complete</strong>
+            )}
+          </div>
+        )}
       </div>
 
+      {fullscreen && idle && (
+        <button
+          className="dock-bubble"
+          aria-label="Show controls"
+          title="Show controls"
+          onMouseEnter={wake}
+          onFocus={wake}
+          onClick={wake}
+        >
+          ⌃
+        </button>
+      )}
+      <div ref={dockRef} className="theater-dock">
       {session && controller && <ContentBar controller={controller} config={config} onPick={onPickContent} />}
 
       {session?.status === 'extra' && (
@@ -538,6 +587,7 @@ function RidePanel({
           <button className="btn ghost" onClick={() => sessionApi?.finish()}>
             Finish
           </button>
+          <FullscreenButton on={fullscreen} onToggle={toggleFullscreen} />
         </div>
       )}
       {inWorkout && (
@@ -557,16 +607,19 @@ function RidePanel({
           <button className="btn" onClick={() => sessionApi?.nextBlock()} title="Next block">
             Block ⏭
           </button>
+          <FullscreenButton on={fullscreen} onToggle={toggleFullscreen} />
           <button className="btn ghost danger" onClick={onStop}>
             Stop
           </button>
         </div>
       )}
-      {inWorkout && (
+      {inWorkout && !fullscreen && (
         <p className="muted small center">
-          Out of sync with Zwift? Use ±5s, skip blocks, or click the chart to jump. Space pauses.
+          Out of sync with Zwift? Use ±5s, skip blocks, or click the chart to jump. Space pauses, F is full screen.
         </p>
       )}
+      </div>
+      </div>
     </div>
   );
 }
@@ -654,4 +707,73 @@ function ContentBar({
       })}
     </div>
   );
+}
+
+function FullscreenButton({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button className="btn ghost" onClick={onToggle} title="Full screen (F)">
+      {on ? 'Exit full screen' : '⛶ Full screen'}
+    </button>
+  );
+}
+
+/**
+ * Full screen for the video area as a whole (players, countdown, bar and controls). YouTube's
+ * own full-screen button is turned off: it only covers one player, so the countdown would be
+ * hidden and a zone switch would leave you looking at a paused video.
+ */
+function useFullscreen(ref: RefObject<HTMLElement | null>): [boolean, () => void] {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const update = () => setOn(!!ref.current && document.fullscreenElement === ref.current);
+    document.addEventListener('fullscreenchange', update);
+    return () => document.removeEventListener('fullscreenchange', update);
+  }, [ref]);
+  const toggle = useCallback(() => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void ref.current?.requestFullscreen().catch(() => {});
+  }, [ref]);
+  return [on, toggle];
+}
+
+/**
+ * True after 3s without mouse, touch or key input inside `ref`, while `enabled`. Input over a
+ * YouTube player never reaches the page (it's a cross-origin frame), so `wake` is also returned
+ * for elements layered above the video. Stays awake while the pointer rests on `holdRef`, for
+ * at most 20s without input, so a missed "pointer left" can't pin the controls open.
+ */
+function useIdle(
+  ref: RefObject<HTMLElement | null>,
+  enabled: boolean,
+  holdRef: RefObject<HTMLElement | null>,
+): [boolean, () => void] {
+  const [idle, setIdle] = useState(false);
+  const timer = useRef(0);
+  const wake = useCallback(() => {
+    setIdle(false);
+    window.clearTimeout(timer.current);
+    const wokeAt = performance.now();
+    timer.current = window.setTimeout(function check() {
+      // :hover is false once the pointer moves onto the video frame.
+      const held = holdRef.current?.matches(':hover') && performance.now() - wokeAt < 20_000;
+      if (held) timer.current = window.setTimeout(check, 1000);
+      else setIdle(true);
+    }, 3000);
+  }, [holdRef]);
+  useEffect(() => {
+    const el = ref.current;
+    if (!enabled || !el) {
+      window.clearTimeout(timer.current);
+      setIdle(false);
+      return;
+    }
+    wake();
+    const events = ['mousemove', 'mousedown', 'touchstart', 'keydown'] as const;
+    for (const e of events) el.addEventListener(e, wake);
+    return () => {
+      window.clearTimeout(timer.current);
+      for (const e of events) el.removeEventListener(e, wake);
+    };
+  }, [ref, enabled, wake]);
+  return [idle, wake];
 }
