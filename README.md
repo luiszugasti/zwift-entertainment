@@ -1,6 +1,21 @@
 # RideReel
 
-Plays YouTube videos and playlists that match the zone of your Zwift workout.
+> [!WARNING]
+> This whole project was **vibe-coded**. I haven't checked the code. Use it at your own risk.
+
+Plays YouTube videos, playlists and channels that match the zone of your Zwift workout.
+
+![Riding: a 3-second countdown before the switch to Zone 5's content, with the content bar underneath](docs/screenshots/ride-countdown.jpg)
+
+## Screenshots
+
+| Load a workout and press Play with Zwift | Choose content for each zone |
+| --- | --- |
+| ![Workout loaded, with the power profile and which zones have content](docs/screenshots/ride-ready.jpg) | ![Zone content tab with a playlist, a video and a channel](docs/screenshots/zone-content.jpg) |
+
+**Full screen**, with the zone status in the corner and the content bar docked at the bottom:
+
+![Full-screen view](docs/screenshots/fullscreen.jpg)
 
 ## Run
 

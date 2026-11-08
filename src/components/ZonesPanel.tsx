@@ -47,7 +47,7 @@ export function ZonesPanel({ config, onChange, locked, zoneTime }: Props) {
     <div className="zones">
       {locked && <div className="banner">Stop the ride to change zone content.</div>}
       <p className="muted intro">
-        Add YouTube videos or playlists for each zone. They play in order and loop. Each zone remembers where it was, so
+        Add YouTube videos, playlists or channels for each zone. They play in order and loop. Each zone remembers where it was, so
         when you come back to it, it picks up where it left off.
       </p>
       {ZONES.map((meta) => (
