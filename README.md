@@ -21,7 +21,9 @@ YouTube's player needs the page to be served over http(s), so open it via the de
    the new zone's content resumes where it left off.
    - Same content in both zones: countdown only, playback continues.
    - Zone with no content: the current video keeps playing.
-4. Positions are saved in the browser between rides. Settings can be exported/imported as JSON.
+4. When the workout ends, the video keeps playing and a 10-second "Keep watching?" prompt appears. Continue to keep
+   watching (Pause and Finish stay available); otherwise the workout complete screen shows.
+5. Positions are saved in the browser between rides. Settings can be exported/imported as JSON.
 
 ## Channels
 

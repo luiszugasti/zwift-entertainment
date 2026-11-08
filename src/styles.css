@@ -141,6 +141,14 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 .countdown-num { font-size: 6rem; font-weight: 800; line-height: 1; color: var(--zone); font-variant-numeric: tabular-nums; }
 .countdown-label { font-size: 1.4rem; font-weight: 700; }
 .countdown-sub { color: var(--muted); }
+.continue-prompt {
+  position: absolute; z-index: 6; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  background: rgba(10, 11, 14, 0.85); border: 3px solid var(--accent); border-radius: 22px; padding: 18px 36px;
+  box-shadow: 0 10px 60px rgba(0, 0, 0, 0.6);
+}
+.continue-prompt .countdown-num { color: var(--accent); font-size: 4rem; }
+.continue-prompt p { margin: 0 0 6px; color: var(--muted); }
 .now-from {
   position: absolute; z-index: 4; top: 10px; left: 10px; background: rgba(0, 0, 0, 0.65);
   padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; pointer-events: none;

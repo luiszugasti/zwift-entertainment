@@ -34,6 +34,11 @@ interface PendingFtp {
 
 type Tab = 'ride' | 'zones';
 
+/** A ride is in progress (including the end-of-workout prompt and watching on afterwards). */
+function isActive(session: SessionState | null): boolean {
+  return !!session && session.status !== 'ready' && session.status !== 'done';
+}
+
 function load(workout: Workout): LoadedWorkout {
   return { workout, timeline: buildTimeline(workout) };
 }
@@ -67,7 +72,7 @@ export function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
-  const active = session?.status === 'running' || session?.status === 'paused';
+  const active = isActive(session);
 
   useEffect(() => saveConfig(config), [config]);
 
@@ -342,7 +347,7 @@ function RidePanel({
   onEditZones,
 }: RideProps) {
   const [dragging, setDragging] = useState(false);
-  const active = session?.status === 'running' || session?.status === 'paused';
+  const active = isActive(session);
 
   const dropProps = {
     onDragOver: (e: DragEvent) => {
@@ -378,6 +383,8 @@ function RidePanel({
   const next = blocks[idx + 1];
   const zone = zoneMeta(block.zone);
   const done = session?.status === 'done';
+  const inWorkout = session?.status === 'running' || session?.status === 'paused';
+  const afterWorkout = session?.status === 'ending' || session?.status === 'extra';
 
   const owner = controller?.activeOwner ?? null;
   const transition = next && controller ? controller.transition(next.zone) : null;
@@ -398,7 +405,7 @@ function RidePanel({
         </button>
       </div>
 
-      <TimelineChart timeline={timeline} t={session ? t : null} onSeek={active ? (s) => sessionApi?.seek(s) : undefined} />
+      <TimelineChart timeline={timeline} t={session ? t : null} onSeek={inWorkout || session?.status === 'ending' ? (s) => sessionApi?.seek(s) : undefined} />
 
       <div className="hud" style={{ '--zone': zone.color } as CSSProperties}>
         <div className="hud-zone">
@@ -455,14 +462,14 @@ function RidePanel({
             </p>
           </div>
         )}
-        {session?.status === 'paused' && (
+        {(session?.status === 'paused' || (session?.status === 'extra' && session.extraPaused)) && (
           <div className="stage-overlay soft">
             <h2>Paused</h2>
           </div>
         )}
-        {active && session.countdown !== null && next && (
+        {inWorkout && session?.countdown != null && next && (
           <div className="countdown" style={{ '--zone': zoneMeta(next.zone).color } as CSSProperties}>
-            <span className="countdown-num">{session.countdown}</span>
+            <span className="countdown-num">{session?.countdown}</span>
             <span className="countdown-label">{zoneMeta(next.zone).label} next</span>
             <span className="countdown-sub">
               {transition === 'continue'
@@ -473,12 +480,39 @@ function RidePanel({
             </span>
           </div>
         )}
-        {active && owner && owner !== block.zone && (
-          <div className="now-from">Playing {zoneMeta(owner).label} content</div>
+        {session?.status === 'ending' && (
+          <div className="continue-prompt" role="alertdialog" aria-labelledby="continue-title">
+            <span className="countdown-num">{session.endingIn}</span>
+            <h2 id="continue-title">Workout complete</h2>
+            <p>Keep watching?</p>
+            <div className="row">
+              <button className="btn primary" autoFocus onClick={() => sessionApi?.continueWatching()}>
+                Continue
+              </button>
+              <button className="btn ghost" onClick={() => sessionApi?.finish()}>
+                Finish
+              </button>
+            </div>
+          </div>
+        )}
+        {active && owner && (owner !== block.zone || afterWorkout) && (
+          <div className="now-from">
+            {session?.status === 'extra' ? 'Workout complete · ' : ''}Playing {zoneMeta(owner).label} content
+          </div>
         )}
       </div>
 
-      {session && !done && (
+      {session?.status === 'extra' && (
+        <div className="controls">
+          <button className="btn primary wide" onClick={() => sessionApi?.togglePause()} title="Space">
+            {session.extraPaused ? 'Resume' : 'Pause'}
+          </button>
+          <button className="btn ghost" onClick={() => sessionApi?.finish()}>
+            Finish
+          </button>
+        </div>
+      )}
+      {inWorkout && (
         <div className="controls">
           <button className="btn" onClick={() => sessionApi?.previousBlock()} title="Previous block">
             ⏮ Block
@@ -500,7 +534,7 @@ function RidePanel({
           </button>
         </div>
       )}
-      {session && !done && (
+      {inWorkout && (
         <p className="muted small center">
           Out of sync with Zwift? Use ±5s, skip blocks, or click the chart to jump. Space pauses.
         </p>
