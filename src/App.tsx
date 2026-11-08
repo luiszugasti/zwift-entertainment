@@ -276,6 +276,20 @@ export function App() {
         {tab === 'zones' && <ZonesPanel config={config} onChange={setConfig} locked={active} zoneTime={zoneTime} />}
       </main>
 
+      <footer className="footer">
+        <a href="https://github.com/luiszugasti" target="_blank" rel="noreferrer">
+          my github (@luiszugasti)
+        </a>
+        <span aria-hidden>|</span>
+        <a href="https://buymeacoffee.com/luiszugasti" target="_blank" rel="noreferrer">
+          buy me more tokens
+        </a>
+        <span aria-hidden>|</span>
+        <a href="https://luiszugasti.me" target="_blank" rel="noreferrer">
+          my website
+        </a>
+      </footer>
+
       <div className="toasts" aria-live="polite">
         {notices.map((n) => (
           <div key={n.id} className="toast">
