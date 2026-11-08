@@ -33,6 +33,11 @@ http://localhost:5173 only. They don't move between machines; use **Export** / *
 The app always uses port 5173 and stops with "Port 5173 is already in use" rather than switching ports, because a
 different port would start with empty settings.
 
+**Mac Dock button:** run `scripts/install-mac-app.sh` once from the repo. It creates `~/Applications/RideReel.app`
+(orange play icon) and adds it to the Dock. Clicking it starts the app if it isn't running and opens it in your
+browser. The server keeps running in the background; its log is in `~/Library/Logs/RideReel.log`. If you move the
+repo, run the script again. Use `--no-dock` to skip adding it to the Dock.
+
 Other commands: `npm run dev` (start without installing or opening a browser), `npm test`, `npm run build`.
 Open the app through the server, not as a local file: YouTube's player and the channel lookup need it.
 
