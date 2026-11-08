@@ -59,6 +59,16 @@ Open the app through the server, not as a local file: YouTube's player and the c
    pick a zone to keep watching after the ride.
 6. Positions are saved in the browser between rides. Settings can be exported/imported as JSON.
 
+## intervals.icu
+
+**Today from intervals.icu** (on the load screen, and next to "Change workout") loads today's planned workout
+from your intervals.icu calendar. If there's one ride planned it loads straight away; if there are several, you pick.
+
+The first time, it asks for your API key: in intervals.icu, go to **Settings → Developer Settings** and copy the
+**API Key**. It's stored in this browser only (not in exported settings); "Use a different API key" replaces it.
+Requests go through the RideReel server (`npm start` or the Dock app), which only forwards two read-only calls:
+the day's planned events, and a workout as `.zwo`.
+
 ## Channels
 
 Paste a channel link (e.g. `https://www.youtube.com/@Jimmy_Broadbent`). The channel plays newest first and works back

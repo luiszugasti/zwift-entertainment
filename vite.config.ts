@@ -43,8 +43,70 @@ function channelResolver(): Plugin {
   };
 }
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const EVENT_ID_RE = /^\d+$/;
+
+/**
+ * intervals.icu, for loading today's planned workout:
+ *   GET /api/intervals/events?date=YYYY-MM-DD   -> planned workouts that day
+ *   GET /api/intervals/workout?id=123           -> that workout as .zwo text
+ * The browser sends the user's API key in an X-Intervals-Key header; it's forwarded with Basic
+ * auth (user "API_KEY") to the athlete the key belongs to (athlete id 0). Going through this
+ * server avoids relying on CORS, and only these two read-only calls are possible.
+ */
+function intervalsProxy(): Plugin {
+  const handle = async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    if (!req.url?.startsWith('/api/intervals/')) return next();
+    const url = new URL(req.url, 'http://localhost');
+    const reply = (status: number, body: string, type = 'text/plain') => {
+      res.statusCode = status;
+      res.setHeader('Content-Type', type);
+      res.setHeader('Cache-Control', 'no-store');
+      res.end(body);
+    };
+    const key = req.headers['x-intervals-key'];
+    if (typeof key !== 'string' || !key.trim()) return reply(401, 'Missing intervals.icu API key.');
+
+    let target: string;
+    if (url.pathname === '/api/intervals/events') {
+      const date = url.searchParams.get('date') ?? '';
+      if (!DATE_RE.test(date)) return reply(400, 'Bad date.');
+      target = `https://intervals.icu/api/v1/athlete/0/events?oldest=${date}&newest=${date}`;
+    } else if (url.pathname === '/api/intervals/workout') {
+      const id = url.searchParams.get('id') ?? '';
+      if (!EVENT_ID_RE.test(id)) return reply(400, 'Bad workout id.');
+      target = `https://intervals.icu/api/v1/athlete/0/events/${id}/download.zwo`;
+    } else {
+      return reply(404, 'Not found.');
+    }
+
+    try {
+      const upstream = await fetch(target, {
+        headers: {
+          Authorization: `Basic ${Buffer.from(`API_KEY:${key.trim()}`).toString('base64')}`,
+          'User-Agent': 'Mozilla/5.0 (RideReel)',
+          Accept: url.pathname.endsWith('events') ? 'application/json' : '*/*',
+        },
+      });
+      const body = await upstream.text();
+      if (upstream.status === 401 || upstream.status === 403) {
+        return reply(401, 'intervals.icu rejected the API key.');
+      }
+      if (!upstream.ok) return reply(502, `intervals.icu returned ${upstream.status}.`);
+      reply(200, body, upstream.headers.get('content-type') ?? 'text/plain');
+    } catch {
+      reply(502, "Couldn't reach intervals.icu.");
+    }
+  };
+  return {
+    name: 'intervals-proxy',
+    configureServer: (server) => void server.middlewares.use(handle),
+    configurePreviewServer: (server) => void server.middlewares.use(handle),
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), channelResolver()],
+  plugins: [react(), channelResolver(), intervalsProxy()],
   test: {
     environment: 'jsdom',
   },

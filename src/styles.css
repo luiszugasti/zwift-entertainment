@@ -270,3 +270,13 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 }
 .dock-bubble:hover, .dock-bubble:focus-visible { opacity: 1; transform: scale(1.08); }
 .theater.fs.idle .dock-bubble { cursor: pointer; }
+
+/* ---------- intervals.icu ---------- */
+.intervals-key { display: flex; flex-direction: column; gap: 12px; }
+.planned { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.planned-btn {
+  width: 100%; display: flex; flex-direction: column; gap: 2px; text-align: left; cursor: pointer;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px;
+}
+.planned-btn:hover { border-color: var(--accent); }
+.modal-actions.spread { justify-content: space-between; align-items: center; }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type RefObject } from 'react';
 import { FtpModal } from './components/FtpModal';
+import { IntervalsDialog } from './components/IntervalsDialog';
 import { TimelineChart } from './components/TimelineChart';
 import { ZonesPanel } from './components/ZonesPanel';
 import { Beeper } from './engine/Beeper';
@@ -72,6 +73,7 @@ export function App() {
   const [session, setSession] = useState<SessionState | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [watching, setWatching] = useState(false);
+  const [intervalsOpen, setIntervalsOpen] = useState(false);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<PlaybackController | null>(null);
@@ -197,6 +199,13 @@ export function App() {
     saveStoredWorkout({ fileName, text, ftp });
     setSession(null);
     setError(null);
+  };
+
+  /** A workout from intervals.icu. Throws if it can't be used, so the dialog can say why. */
+  const loadWorkoutText = (fileName: string, text: string) => {
+    const res = parseWorkoutFile(fileName, text);
+    if (res.status === 'ok') acceptWorkout(fileName, text, res.workout);
+    else setPendingFtp({ fileName, text, name: res.name, build: res.build });
   };
 
   const handleFile = async (file: File) => {
@@ -334,6 +343,7 @@ export function App() {
             sessionApi={sessionRef.current}
             onEditZones={() => setTab('zones')}
             onPickContent={pickContent}
+            onIntervals={() => setIntervalsOpen(true)}
           />
           <input
             ref={fileInputRef}
@@ -372,6 +382,8 @@ export function App() {
         ))}
       </div>
 
+      {intervalsOpen && <IntervalsDialog onLoad={loadWorkoutText} onClose={() => setIntervalsOpen(false)} />}
+
       {pendingFtp && (
         <FtpModal
           workoutName={pendingFtp.name}
@@ -404,6 +416,7 @@ interface RideProps {
   onStop: () => void;
   onEditZones: () => void;
   onPickContent: (owner: ZoneId) => void;
+  onIntervals: () => void;
 }
 
 function RidePanel({
@@ -421,6 +434,7 @@ function RidePanel({
   onStop,
   onEditZones,
   onPickContent,
+  onIntervals,
 }: RideProps) {
   const [dragging, setDragging] = useState(false);
   const active = isActive(session);
@@ -460,9 +474,14 @@ function RidePanel({
       <div className={`dropzone${dragging ? ' dragging' : ''}`} {...dropProps}>
         <h1>Load a workout</h1>
         <p className="muted">Drop a Zwift workout file here (.zwo, .erg or .mrc), or</p>
-        <button className="btn primary" onClick={onPickFile}>
-          Choose file
-        </button>
+        <div className="row">
+          <button className="btn primary" onClick={onPickFile}>
+            Choose file
+          </button>
+          <button className="btn" onClick={onIntervals}>
+            Today from intervals.icu
+          </button>
+        </div>
         <div className="just-watch">
           <span className="muted">No workout today?</span>
           <button className="btn" onClick={onWatch}>
@@ -507,9 +526,14 @@ function RidePanel({
             {workout.ftp ? ` · FTP ${workout.ftp} W` : ''}
           </p>
         </div>
-        <button className="btn ghost" disabled={active} onClick={onPickFile}>
-          Change workout
-        </button>
+        <div className="row">
+          <button className="btn ghost" disabled={active} onClick={onIntervals}>
+            Today from intervals.icu
+          </button>
+          <button className="btn ghost" disabled={active} onClick={onPickFile}>
+            Change workout
+          </button>
+        </div>
       </div>
 
       <TimelineChart timeline={timeline} t={session ? t : null} onSeek={inWorkout || session?.status === 'ending' ? (s) => sessionApi?.seek(s) : undefined} />
