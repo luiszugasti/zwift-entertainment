@@ -55,3 +55,7 @@ bottom-right corner to bring them back (mouse movement over the video itself doe
 off, because it would only cover one player.
 
 Sample workouts are in `samples/`; `quick-test.zwo` is 2 minutes of short blocks for checking switching.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
