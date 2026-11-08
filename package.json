@@ -3,11 +3,15 @@
   "private": true,
   "version": "0.1.0",
   "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "start": "npm install --no-audit --no-fund && vite --port 5173 --strictPort --open",
+    "dev": "vite --port 5173 --strictPort",
     "build": "tsc -b && vite build",
-    "preview": "vite preview",
+    "preview": "vite preview --port 5173 --strictPort",
     "test": "vitest run",
     "typecheck": "tsc -b"
   },

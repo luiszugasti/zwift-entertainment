@@ -19,13 +19,22 @@ Plays YouTube videos, playlists and channels that match the zone of your Zwift w
 
 ## Run
 
+Needs [Node.js](https://nodejs.org) 22 or newer. Then, in one line:
+
 ```sh
-npm install
-npm run dev     # open http://localhost:5173
-npm test
+git clone https://github.com/luiszugasti/zwift-entertainment.git && cd zwift-entertainment && npm start
 ```
 
-YouTube's player needs the page to be served over http(s), so open it via the dev server (or `npm run build` and host `dist/`), not as a local file.
+`npm start` installs dependencies, starts the app at http://localhost:5173 and opens it in your browser. Next time,
+from the `zwift-entertainment` folder: `git pull && npm start`.
+
+Settings (zone links, volume, FTP, where each zone left off) are saved in the browser, for that browser and
+http://localhost:5173 only. They don't move between machines; use **Export** / **Import** to copy your zone setup.
+The app always uses port 5173 and stops with "Port 5173 is already in use" rather than switching ports, because a
+different port would start with empty settings.
+
+Other commands: `npm run dev` (start without installing or opening a browser), `npm test`, `npm run build`.
+Open the app through the server, not as a local file: YouTube's player and the channel lookup need it.
 
 ## How it works
 
