@@ -135,6 +135,13 @@ export class WorkoutSession {
     this.emit();
   }
 
+  /** Watch content without a workout (no clock, no zone changes). */
+  watchOnly() {
+    this.state = { ...this.state, status: 'extra', extraPaused: false };
+    this.playback.play();
+    this.emit();
+  }
+
   /** From the complete screen: start watching again. */
   watchAfter() {
     if (this.state.status !== 'done') return;

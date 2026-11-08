@@ -35,6 +35,12 @@ interface PendingFtp {
 
 type Tab = 'ride' | 'zones';
 
+/** Stand-in workout while just watching: no clock and no zone changes. */
+const WATCH_ONLY: LoadedWorkout = {
+  workout: { name: 'Just watching', format: 'zwo', segments: [] },
+  timeline: { sub: [], blocks: [{ start: 0, end: 1, zone: 'z1' }], total: 1 },
+};
+
 /** A ride is in progress (including the end-of-workout prompt and watching on afterwards). */
 function isActive(session: SessionState | null): boolean {
   return !!session && session.status !== 'ready' && session.status !== 'done';
@@ -65,6 +71,7 @@ export function App() {
   const [notices, setNotices] = useState<{ id: number; text: string }[]>([]);
   const [session, setSession] = useState<SessionState | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [watching, setWatching] = useState(false);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<PlaybackController | null>(null);
@@ -97,7 +104,42 @@ export function App() {
   const stopRide = useCallback(() => {
     teardown();
     setSession(null);
+    setWatching(false);
   }, [teardown]);
+
+  // "Just watch": once the watch layout (and its video area) is on screen, start the players.
+  useEffect(() => {
+    if (!watching || sessionRef.current || !stageRef.current) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await loadYouTubeApi();
+      } catch (e) {
+        setApiError((e as Error).message);
+        setWatching(false);
+        return;
+      }
+      if (cancelled || !stageRef.current) return;
+      const controller = new PlaybackController(stageRef.current, config, notify);
+      const first = controller.owners()[0];
+      if (!first) {
+        controller.destroy();
+        setWatching(false);
+        setTab('zones');
+        notify('Add some content to a zone first.');
+        return;
+      }
+      const s = new WorkoutSession(WATCH_ONLY.timeline, controller, beeperRef.current, setSession);
+      controllerRef.current = controller;
+      sessionRef.current = s;
+      if (import.meta.env.DEV) Object.assign(window, { __rideReel: { controller, session: s } });
+      controller.select(first);
+      s.watchOnly();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [watching, config, notify]);
 
   // The complete screen keeps its players so the rider can watch on. If zone content is
   // edited they'd be out of date, so drop them (the bar disappears until the next ride).
@@ -274,7 +316,13 @@ export function App() {
       <main>
         <section hidden={tab !== 'ride'} className="ride">
           <RidePanel
-            loaded={loaded}
+            loaded={watching ? WATCH_ONLY : loaded}
+            watching={watching}
+            onWatch={() => {
+              teardown();
+              setSession(null);
+              setWatching(true);
+            }}
             config={config}
             session={session}
             controller={controllerRef.current}
@@ -342,6 +390,9 @@ export function App() {
 
 interface RideProps {
   loaded: LoadedWorkout | null;
+  /** Just watching: no workout, no clock. */
+  watching: boolean;
+  onWatch: () => void;
   config: AppConfig;
   session: SessionState | null;
   controller: PlaybackController | null;
@@ -357,6 +408,8 @@ interface RideProps {
 
 function RidePanel({
   loaded,
+  watching,
+  onWatch,
   config,
   session,
   controller,
@@ -410,6 +463,12 @@ function RidePanel({
         <button className="btn primary" onClick={onPickFile}>
           Choose file
         </button>
+        <div className="just-watch">
+          <span className="muted">No workout today?</span>
+          <button className="btn" onClick={onWatch}>
+            ▶ Just watch
+          </button>
+        </div>
       </div>
     );
   }
@@ -431,6 +490,15 @@ function RidePanel({
 
   return (
     <div className="ride-layout" {...dropProps}>
+      {watching ? (
+        <div className="workout-head">
+          <div>
+            <h1>Just watching</h1>
+            <p className="muted">No workout: pick any zone's content below.</p>
+          </div>
+        </div>
+      ) : (
+      <>
       <div className="workout-head">
         <div>
           <h1>{workout.name}</h1>
@@ -469,17 +537,22 @@ function RidePanel({
           <strong>{next ? `${zoneMeta(next.zone).label} in ${formatTime(next.start - t)}` : 'Finish'}</strong>
         </div>
       </div>
+      </>
+      )}
 
       <div ref={theaterRef} className={`theater${fullscreen ? ' fs' : ''}${idle ? ' idle' : ''}`}>
       <div className="stage-wrap">
         <div className="stage" ref={stageRef} />
-        {!session && (
+        {!session && !watching && (
           <div className="stage-overlay">
             <p className="hint">Press Play at the same moment you start the workout in Zwift.</p>
             <button className="play-btn" onClick={onStart} aria-label="Play">
               ▶
             </button>
             <ZoneCheck zones={usedZones} config={config} onEdit={onEditZones} />
+            <button className="link-btn" onClick={onWatch}>
+              Or just watch, without the workout
+            </button>
           </div>
         )}
         {done && (
@@ -540,10 +613,10 @@ function RidePanel({
         )}
         {active && owner && (owner !== block.zone || afterWorkout) && (
           <div className="now-from">
-            {session?.status === 'extra' ? 'Workout complete · ' : ''}Playing {zoneMeta(owner).label} content
+            {watching ? '' : session?.status === 'extra' ? 'Workout complete · ' : ''}Playing {zoneMeta(owner).label} content
           </div>
         )}
-        {fullscreen && session && !done && (
+        {fullscreen && session && !done && !watching && (
           <div className="fs-hud" style={{ '--zone': zone.color } as CSSProperties}>
             <span className="zone-pill big">{zone.short}</span>
             {inWorkout ? (
@@ -584,8 +657,8 @@ function RidePanel({
           <button className="btn primary wide" onClick={() => sessionApi?.togglePause()} title="Space">
             {session.extraPaused ? 'Resume' : 'Pause'}
           </button>
-          <button className="btn ghost" onClick={() => sessionApi?.finish()}>
-            Finish
+          <button className="btn ghost" onClick={() => (watching ? onStop() : sessionApi?.finish())}>
+            {watching ? 'Stop watching' : 'Finish'}
           </button>
           <FullscreenButton on={fullscreen} onToggle={toggleFullscreen} />
         </div>

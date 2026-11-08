@@ -45,7 +45,8 @@ Open the app through the server, not as a local file: YouTube's player and the c
 
 1. **Zone content**: add YouTube video or playlist links for Zone 1–6 and Free ride. Links play in order and loop.
    "Copy content from other zone" makes a zone play another zone's content and share its position.
-2. **Ride**: load a `.zwo`, `.erg` or `.mrc` workout. Press Play when you start the workout in Zwift.
+2. **Ride**: load a `.zwo`, `.erg` or `.mrc` workout (or press **Just watch** to pick any zone's content with no
+   workout). Press Play when you start the workout in Zwift.
 3. 3 seconds before each zone change there is a countdown with beeps. At the change, the old video pauses and
    the new zone's content resumes where it left off.
    - Same content in both zones: countdown only, playback continues.
