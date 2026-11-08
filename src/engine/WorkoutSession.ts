@@ -135,6 +135,14 @@ export class WorkoutSession {
     this.emit();
   }
 
+  /** From the complete screen: start watching again. */
+  watchAfter() {
+    if (this.state.status !== 'done') return;
+    this.state = { ...this.state, status: 'extra', extraPaused: false };
+    this.playback.play();
+    this.emit();
+  }
+
   /** Stops playback and shows the workout as complete. */
   finish() {
     window.clearInterval(this.timer);

@@ -23,6 +23,11 @@ export interface SavedPosition {
   /** Video playing within a playlist; preferred over the index if the playlist changes. */
   videoId?: string;
   time: number;
+  /** Last seen video details, for showing what a zone will resume. */
+  title?: string;
+  duration?: number;
+  /** Time in the last seen video (for channels, `time` isn't used). */
+  shownTime?: number;
 }
 
 const CONFIG_KEY = 'ridereel.config.v1';

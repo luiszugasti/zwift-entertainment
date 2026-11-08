@@ -21,9 +21,13 @@ YouTube's player needs the page to be served over http(s), so open it via the de
    the new zone's content resumes where it left off.
    - Same content in both zones: countdown only, playback continues.
    - Zone with no content: the current video keeps playing.
-4. When the workout ends, the video keeps playing and a 10-second "Keep watching?" prompt appears. Continue to keep
-   watching (Pause and Finish stay available); otherwise the workout complete screen shows.
-5. Positions are saved in the browser between rides. Settings can be exported/imported as JSON.
+4. The bar under the video has a button per zone with content, showing its current video and time. Pressing one
+   switches the video to that content until the workout reaches a zone that has its own content (zones without
+   content keep your pick).
+5. When the workout ends, the video keeps playing and a 10-second "Keep watching?" prompt appears. Continue to keep
+   watching (Pause and Finish stay available); otherwise the workout complete screen shows. The bar stays there too:
+   pick a zone to keep watching after the ride.
+6. Positions are saved in the browser between rides. Settings can be exported/imported as JSON.
 
 ## Channels
 

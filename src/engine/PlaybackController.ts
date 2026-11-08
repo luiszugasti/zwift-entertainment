@@ -1,7 +1,7 @@
-import { contentOwner, loadPositions, ownerLinks, savePositions, type AppConfig } from '../lib/config';
+import { contentOwner, linksSignature, loadPositions, ownerLinks, savePositions, type AppConfig } from '../lib/config';
 import { parseYouTubeLink } from '../lib/youtube';
-import type { ZoneId } from '../lib/zones';
-import { ZonePlayer } from './ZonePlayer';
+import { ZONE_IDS, type ZoneId } from '../lib/zones';
+import { ZonePlayer, type NowPlaying } from './ZonePlayer';
 
 /**
  * Decides which zone's content is on screen. Only one player plays at a time; switching
@@ -50,20 +50,49 @@ export class PlaybackController {
     return p;
   }
 
+  /**
+   * The workout entered `zone`. Switches to its content; a zone without content keeps whatever
+   * is on screen, including content the rider picked by hand.
+   */
   enterZone(zone: ZoneId) {
     const owner = this.ownerFor(zone);
-    if (!owner || owner === this.active) return;
+    if (owner) this.switchTo(owner);
+  }
+
+  /** The rider picked a zone's content by hand. It stays on until the workout changes zone. */
+  select(owner: ZoneId) {
+    if (this.ownerFor(owner) === owner) this.switchTo(owner);
+  }
+
+  private switchTo(owner: ZoneId) {
+    if (owner === this.active) return;
     const prev = this.active ? this.players.get(this.active) : undefined;
     prev?.pause();
     prev?.hide();
     this.active = owner;
-    if (this.playing) void this.playerFor(owner).play();
+    const next = this.playerFor(owner);
+    if (this.playing) next.play();
+    else next.show();
     this.persist();
+  }
+
+  /** Zones that own playable content, in zone order. */
+  owners(): ZoneId[] {
+    return ZONE_IDS.filter((z) => this.ownerFor(z) === z);
+  }
+
+  /** What a zone's content is on (or will resume), live if its player exists. */
+  nowPlaying(owner: ZoneId): NowPlaying | null {
+    const live = this.players.get(owner)?.nowPlaying();
+    if (live) return live;
+    const saved = loadPositions()[owner];
+    if (!saved || saved.sig !== linksSignature(ownerLinks(this.config, owner)) || !saved.title) return null;
+    return { title: saved.title, time: saved.shownTime ?? saved.time, duration: saved.duration };
   }
 
   play() {
     this.playing = true;
-    if (this.active) void this.playerFor(this.active).play();
+    if (this.active) this.playerFor(this.active).play();
   }
 
   pause() {

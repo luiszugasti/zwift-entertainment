@@ -6,6 +6,7 @@ import { Beeper } from './engine/Beeper';
 import { PlaybackController } from './engine/PlaybackController';
 import { WorkoutSession, type SessionState } from './engine/WorkoutSession';
 import {
+  childrenOf,
   exportConfig,
   loadConfig,
   loadStoredWorkout,
@@ -98,10 +99,29 @@ export function App() {
     setSession(null);
   }, [teardown]);
 
-  // Players are torn down once the workout completes; positions are saved by destroy().
+  // The complete screen keeps its players so the rider can watch on. If zone content is
+  // edited they'd be out of date, so drop them (the bar disappears until the next ride).
+  const zonesRef = useRef(config.zones);
   useEffect(() => {
-    if (session?.status === 'done') teardown();
-  }, [session?.status, teardown]);
+    if (zonesRef.current === config.zones) return;
+    zonesRef.current = config.zones;
+    if (sessionRef.current?.snapshot.status === 'done') {
+      teardown();
+      setSession((s) => (s ? { ...s } : s));
+    }
+  }, [config.zones, teardown]);
+
+  /** The rider picked a zone's content from the bar under the video. */
+  const pickContent = (owner: ZoneId) => {
+    const s = sessionRef.current;
+    const c = controllerRef.current;
+    if (!s || !c) return;
+    c.select(owner);
+    if (s.snapshot.status === 'ending') s.continueWatching();
+    else if (s.snapshot.status === 'done') s.watchAfter();
+    // The clock doesn't tick after the workout, so re-render for the new selection.
+    setSession({ ...s.snapshot });
+  };
 
   useEffect(() => {
     const save = () => controllerRef.current?.persist();
@@ -265,6 +285,7 @@ export function App() {
             onStop={stopRide}
             sessionApi={sessionRef.current}
             onEditZones={() => setTab('zones')}
+            onPickContent={pickContent}
           />
           <input
             ref={fileInputRef}
@@ -331,6 +352,7 @@ interface RideProps {
   onStart: () => void;
   onStop: () => void;
   onEditZones: () => void;
+  onPickContent: (owner: ZoneId) => void;
 }
 
 function RidePanel({
@@ -345,6 +367,7 @@ function RidePanel({
   onStart,
   onStop,
   onEditZones,
+  onPickContent,
 }: RideProps) {
   const [dragging, setDragging] = useState(false);
   const active = isActive(session);
@@ -445,7 +468,10 @@ function RidePanel({
         {done && (
           <div className="stage-overlay">
             <h2>Workout complete</h2>
-            <p className="muted">Each zone's position is saved for next time.</p>
+            <p className="muted">
+              Each zone's position is saved for next time.
+              {controller && ' Pick a zone below to keep watching.'}
+            </p>
             <button className="btn primary" onClick={onStart}>
               Ride again
             </button>
@@ -501,6 +527,8 @@ function RidePanel({
           </div>
         )}
       </div>
+
+      {session && controller && <ContentBar controller={controller} config={config} onPick={onPickContent} />}
 
       {session?.status === 'extra' && (
         <div className="controls">
@@ -571,5 +599,59 @@ function ZoneCheck({ zones, config, onEdit }: { zones: ZoneId[]; config: AppConf
         </button>
       </li>
     </ul>
+  );
+}
+
+/** One button per zone with its own content: shows what it's on and switches the video to it. */
+function ContentBar({
+  controller,
+  config,
+  onPick,
+}: {
+  controller: PlaybackController;
+  config: AppConfig;
+  onPick: (owner: ZoneId) => void;
+}) {
+  // Refresh titles and times even when the workout clock isn't ticking (after the workout).
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const owners = controller.owners();
+  if (!owners.length) return null;
+  const active = controller.activeOwner;
+
+  return (
+    <div className="content-bar" role="group" aria-label="Choose what to watch">
+      {owners.map((owner) => {
+        const info = controller.nowPlaying(owner);
+        const zones = [owner, ...childrenOf(config, owner)];
+        const meta = zoneMeta(owner);
+        return (
+          <button
+            key={owner}
+            className={`content-btn${owner === active ? ' on' : ''}`}
+            style={{ '--zone': meta.color } as CSSProperties}
+            aria-pressed={owner === active}
+            onClick={() => onPick(owner)}
+            title={info?.title ? `${zones.map((z) => zoneMeta(z).label).join(', ')}: ${info.title}` : undefined}
+          >
+            <span className="content-zones">
+              {zones.map((z) => (
+                <span key={z} className="zone-pill" style={{ '--zone': zoneMeta(z).color } as CSSProperties}>
+                  {zoneMeta(z).short}
+                </span>
+              ))}
+            </span>
+            <span className="content-title">{info?.title ?? 'Not played yet'}</span>
+            <span className="content-time">
+              {info ? `${formatTime(info.time)}${info.duration ? ` / ${formatTime(info.duration)}` : ''}` : ''}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }

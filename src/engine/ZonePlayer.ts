@@ -38,6 +38,12 @@ interface ChannelRun {
 
 type ChannelItem = Extract<MediaItem, { kind: 'channel' }>;
 
+export interface NowPlaying {
+  title: string;
+  time: number;
+  duration?: number;
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -66,6 +72,8 @@ export class ZonePlayer {
   private wantPlaying = false;
   private errorStreak = 0;
   private volume: number;
+  /** Last seen video details; persisted so the zone can show what it will resume. */
+  private info: NowPlaying | null = null;
 
   constructor(
     owner: ZoneId,
@@ -83,6 +91,7 @@ export class ZonePlayer {
       .filter((i): i is MediaItem => i !== null && (i.kind !== 'channel' || i.channelId !== null));
     if (saved && saved.sig === this.sig && saved.item < this.items.length) {
       this.pos = { item: saved.item, playlistIndex: saved.playlistIndex, videoId: saved.videoId, time: saved.time };
+      if (saved.title) this.info = { title: saved.title, time: saved.shownTime ?? saved.time, duration: saved.duration };
       if (this.items[saved.item].kind === 'playlist' && saved.videoId) {
         this.pendingJump = { videoId: saved.videoId, time: saved.time };
       }
@@ -238,6 +247,20 @@ export class ZonePlayer {
     this.el.classList.remove('active');
   }
 
+  show() {
+    this.el.classList.add('active');
+  }
+
+  /** Current video title and time; falls back to the last seen details. */
+  nowPlaying(): NowPlaying | null {
+    const p = this.player;
+    if (p && this.ready && this.started && this.pendingSeek === null && !this.pendingJump) {
+      const title = p.getVideoData()?.title;
+      if (title) this.info = { title, time: p.getCurrentTime() || 0, duration: p.getDuration() || undefined };
+    }
+    return this.info;
+  }
+
   setVolume(volume: number) {
     this.volume = volume;
     if (this.ready) this.player?.setVolume(volume);
@@ -250,6 +273,7 @@ export class ZonePlayer {
     const state = p.getPlayerState();
     if (state !== PLAYING && state !== PAUSED && state !== BUFFERING) return;
     const time = p.getCurrentTime() || 0;
+    this.nowPlaying();
     const it = this.items[this.pos.item];
     if (it.kind === 'channel') {
       const ch = this.channel;
@@ -268,7 +292,8 @@ export class ZonePlayer {
 
   position(): SavedPosition {
     this.capture();
-    return { sig: this.sig, ...this.pos };
+    const info = this.info ? { title: this.info.title, duration: this.info.duration, shownTime: this.info.time } : {};
+    return { sig: this.sig, ...this.pos, ...info };
   }
 
   /** Next link in the zone's list (looping). */
