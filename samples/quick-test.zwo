@@ -1,0 +1,12 @@
+<workout_file>
+    <name>Quick switch test (2 min)</name>
+    <description>Short blocks to check countdowns and zone switching quickly.</description>
+    <workout>
+        <SteadyState Duration="20" Power="0.50"/>
+        <SteadyState Duration="20" Power="0.70"/>
+        <SteadyState Duration="20" Power="0.50"/>
+        <SteadyState Duration="20" Power="0.95"/>
+        <FreeRide Duration="20"/>
+        <SteadyState Duration="20" Power="0.70"/>
+    </workout>
+</workout_file>
